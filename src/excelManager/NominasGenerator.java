@@ -7,16 +7,12 @@ import java.io.FileNotFoundException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.ParseException;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.math.BigInteger;
 import java.util.concurrent.TimeUnit;
 
@@ -54,7 +50,11 @@ public class NominasGenerator {
             //valor en pos x = importe con x nº de trienios
 
         //INTRODUCIMOS POR CONSOLA LA FECHA A CALCULAR LAS NOMINAS Y RECORREMOS TODOS LOS TRABAJADORES
-        String mainDateString = "01/"+"12/2022";
+        Scanner lectura = new Scanner(System.in);
+        System.out.println("Introduce fecha en la cual generar las nóminas (mm/aaaa): ");
+        String dateEntrada = lectura.next();
+
+        String mainDateString = "01/"+dateEntrada;
         Date mainDate = new SimpleDateFormat("dd/MM/yyyy").parse(mainDateString);
 
         for(Map.Entry entry:data.entrySet()){
