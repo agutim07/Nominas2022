@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.text.ParseException;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.io.IOException;
@@ -21,6 +22,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;  
 import java.util.Date;  
 import java.math.BigInteger;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -49,28 +51,28 @@ import javax.xml.transform.stream.StreamResult;
 public class ExcelManager {
     private static MissingCellPolicy xRow;
     
-     public static void main(String[] args) throws IOException, TransformerException, ParserConfigurationException {
+     public static void main(String[] args) throws IOException, TransformerException, ParserConfigurationException, ParseException {
         //IMPORTAMOS EXCEL CON DATOS
         FileInputStream fis = new FileInputStream(".\\resources\\SistemasInformacionII.xlsx");
         XSSFWorkbook workbook = new XSSFWorkbook(fis);
         XSSFSheet sheet = workbook.getSheet("Hoja5");
         int rows = sheet.getLastRowNum();
-        
+
         //CREACION DE DOCUMENTO ERRORES y ERRORESCCC
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
-        
+
         Document doc = docBuilder.newDocument();
         Element rootElement = doc.createElement("Trabajadores");
         doc.appendChild(rootElement);
-        
+
         Document docCCC = docBuilder.newDocument();
         Element rootElementCCC = docCCC.createElement("Cuentas");
         docCCC.appendChild(rootElementCCC);
-        
+
         int keySinDNI=0;
         HashMap<String,List<String>> data = new HashMap<String,List<String>>();
-        
+
         //LIST VALUES POSICIONES: 0 NOMBRE, 1 APELLIDO1, 2 APELLIDO2, 3 CIF_EMP
         //4 NOMBRE_EMP, 5 FECHAALTA_EMP, 6 CATEGORIA, 7 PRORRATA, 8 CCC, 9 PAIS CCC
         //10 IBAN, 11 EMAIL
@@ -78,7 +80,7 @@ public class ExcelManager {
             boolean duplicate=false;
             String falseCCC = "";
             ArrayList<String> listValues = new ArrayList<String>();
-            
+
             if(sheet.getRow(r)!=null && (!checkEmpty(sheet,r,0) || !checkEmpty(sheet,r,1))){
                 String key="";
                 //COMPROBAMOS SI HAY DNI O ES BLANCO
@@ -95,17 +97,17 @@ public class ExcelManager {
                     key="sinDNI_"+keySinDNI;
                     keySinDNI++;
                 }
-                
+
                 //AÑADIMOS LOS VALORES
                 for(int i=1; i<=12; i++){
                     String value;
                     if(!checkEmpty(sheet,r,i)){
                         if(i==6){
                             Date date=sheet.getRow(r).getCell(i).getDateCellValue();
-                            DateFormat dateFormat = new SimpleDateFormat("dd-mm-yyyy");  
-                            value = dateFormat.format(date);  
-                        }else{ 
-                            value=sheet.getRow(r).getCell(i).getStringCellValue(); 
+                            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+                            value = dateFormat.format(date);
+                        }else{
+                            value=sheet.getRow(r).getCell(i).getStringCellValue();
                             if(i==9){
                                 String realCCC = calcularCCC(value);
                                 if(!realCCC.equals(value)){
@@ -134,20 +136,21 @@ public class ExcelManager {
                 }
                 data.put(key,listValues);
             }
-            
+
             if(duplicate){
                 addDuplicate(doc,rootElement,r,listValues);
             }
             if(falseCCC!=""){
                 addCCCError(docCCC,rootElementCCC,r,listValues,falseCCC);
             }
-            
+
         }
-        
-        //for(Map.Entry entry:data.entrySet()){
-        //    System.out.println(entry.getKey());
-        //}
-      
+
+        //GENERADOR DE NOMINAS
+        NominasGenerator ng = new NominasGenerator();
+        ng.generarNominas(data,workbook);
+
+        //CREACION DE DOCUMENTOS Y FIN
         createErroresFile(doc,"dni");
         createErroresFile(docCCC,"ccc");
         FileOutputStream out = new FileOutputStream(new File(".\\resources\\SistemasInformacionII_Actualizado.xlsx"));
