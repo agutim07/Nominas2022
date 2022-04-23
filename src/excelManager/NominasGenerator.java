@@ -48,13 +48,13 @@ public class NominasGenerator {
 
         ArrayList<Double> listaCuotas = getHoja1(workbook);
             //listaCuotas: 0 seguridad social Trab, 1 desempleo Trab, 2 formacion Trab
-            //3 accidentes Emp, 4 contingencias Emp, 5 fogasa Emp, 6 desempleo Emp, 7 formacion Emp
+            //3 accidentes Emp, 4 seguridad social Emp, 5 fogasa Emp, 6 desempleo Emp, 7 formacion Emp
 
         ArrayList<Integer> listaImporteTrienios = getHoja2(workbook);
             //valor en pos x = importe con x nº de trienios
 
         //INTRODUCIMOS POR CONSOLA LA FECHA A CALCULAR LAS NOMINAS Y RECORREMOS TODOS LOS TRABAJADORES
-        String mainDateString = "01/"+"06/2014";
+        String mainDateString = "01/"+"12/2022";
         Date mainDate = new SimpleDateFormat("dd/MM/yyyy").parse(mainDateString);
 
         for(Map.Entry entry:data.entrySet()){
@@ -87,6 +87,7 @@ public class NominasGenerator {
 
                 //CASO: NO TRABAJA EL ANO ENTERO
                 if(daysDiff<365){
+                    System.out.print(" ?? ");
                     Double[] extras = getExtrasRecienContratado(dateAltaString, mainDateString);
                     int nominasCompletas = extras[0].intValue();
                     Double porcentajeExtraDic = extras[1]; Double porcentajeExtraJun = extras[2];
@@ -100,20 +101,64 @@ public class NominasGenerator {
                     //CASO: PRORRATEO Y CAMBIO DE TRIENIO AL SIGUIENTE AÑO
                     int nextTrienio = ((Integer.parseInt(mainDateString.substring(6))+1)-Integer.parseInt(dateAltaString.substring(6)))/3;
                     if(prorrateo && nextTrienio!=trienio){
+                        System.out.print(" -- ");
                         brutoAnual += (double) listaImporteTrienios.get(nextTrienio)/6 - (double) antiguedadMes/6;
                     }
                 }
                 System.out.print(prec(brutoAnual)+" ");
                 //FIN CALCULO DE BRUTO ANUAL
-                Double irpf = getIRPF(listaRetenciones, brutoAnual);
+
+                Double irpfRetencion = getIRPF(listaRetenciones, brutoAnual);
                 Double prorrateoExtra = salarioBaseMes/6 + complementosMes/6 + (double) antiguedadMes/6;
-                if(prorrateo) System.out.print("-- "+prec(prorrateoExtra));
+                Double brutoMensual = salarioBaseMes+complementosMes+antiguedadMes+prorrateoExtra;
+                Double calculoBaseEmpTrab = brutoMensual;
+                if(!prorrateo) brutoMensual -= prorrateoExtra;
 
+                //CALCULO DEDUCCIONES EMPLEADO
+                Double ssocial = calculoBaseEmpTrab * listaCuotas.get(0);
+                Double desempleo = calculoBaseEmpTrab * listaCuotas.get(1);
+                Double formacion = calculoBaseEmpTrab * listaCuotas.get(2);
+                Double irpf = brutoMensual * irpfRetencion;
+                Double totaldeducciones = ssocial + desempleo + formacion + irpf;
 
+                Double liquidomensual = brutoMensual - totaldeducciones;
 
+                //CALCULO GASTOS EMPRESARIO
+                Double ssocialEmp = calculoBaseEmpTrab * listaCuotas.get(4);
+                Double desempleoEmp = calculoBaseEmpTrab * listaCuotas.get(6);
+                Double fogasa = calculoBaseEmpTrab * listaCuotas.get(5);
+                Double formacionEmp = calculoBaseEmpTrab * listaCuotas.get(7);
+                Double accidentes = calculoBaseEmpTrab * listaCuotas.get(3);
+                Double totalempresario = ssocialEmp + desempleoEmp + fogasa + formacionEmp + accidentes;
 
+                Double costeRealEmp = brutoMensual + totalempresario;
+                System.out.print(prec(costeRealEmp));
 
+                //CALCULO DE EXTRAS
+                if(!prorrateo){
+                    int mesCalculo = Integer.valueOf(mainDateString.substring(3,5));
+                    Double brutoMensualExtra=0.0;
+                    //COMPROBAMOS PORCENTAJES DE EXTRAS POR SI HAY UN EMPLEADO RECIÉN CONTRATADO
+                    Double porcentajeExtraDic = 1.0; Double porcentajeExtraJun = 1.0;
+                    if(daysDiff<365) {
+                        Double[] extras = getExtrasRecienContratado(dateAltaString, mainDateString);
+                        porcentajeExtraDic = extras[1]; porcentajeExtraJun = extras[2];
+                    }
 
+                    if(mesCalculo==6){
+                        //CALCULAMOS LA EXTRA DE JUNIO
+                        brutoMensualExtra = brutoMensual * porcentajeExtraJun;
+                    }
+                    if(mesCalculo==12){
+                        //CALCULAMOS LA EXTRA DE DICIEMBRE
+                        brutoMensualExtra = brutoMensual * porcentajeExtraDic;
+                    }
+
+                    Double irpfExtra = brutoMensualExtra * irpfRetencion;
+                    Double liquidoextra = brutoMensualExtra-irpfExtra;
+                    Double costeempresarioextra = brutoMensualExtra;
+                    System.out.print(" EXTRA: "+prec(brutoMensualExtra)+" "+prec(liquidoextra)+ " "+prec(costeempresarioextra));
+                }
             }
             System.out.println();
         }
@@ -131,8 +176,8 @@ public class NominasGenerator {
 
     public static Double[] getExtrasRecienContratado(String dateAlta, String mainDate){
         int mesAlta = Integer.valueOf(dateAlta.substring(3,5));
-        int añoAlta = Integer.parseInt(mainDate.substring(6));
-        int añoActual = Integer.parseInt(dateAlta.substring(6));
+        int añoActual = Integer.parseInt(mainDate.substring(6));
+        int añoAlta = Integer.parseInt(dateAlta.substring(6));
 
         int nominasCompletas=12;
         int extraDic=6;
@@ -156,13 +201,15 @@ public class NominasGenerator {
     }
 
     public static Double getIRPF(ArrayList<BrutoRetenciones> lista, Double bruto){
+        if(bruto<=lista.get(0).getBrutoAnual()) return lista.get(0).getRetencion();
+
         for(int i=0; i<(lista.size()-1); i++){
-            if(bruto>=lista.get(i).getBrutoAnual() && bruto<lista.get(i+1).getBrutoAnual()){
-                return lista.get(i).getRetencion();
+            if(bruto>lista.get(i).getBrutoAnual() && bruto<=lista.get(i+1).getBrutoAnual()){
+                return lista.get(i+1).getRetencion();
             }
         }
 
-        return 0.0;
+        return lista.get(lista.size()-1).getRetencion();
     }
 
     public static ArrayList<Categoria> getHoja3(XSSFWorkbook workbook){
@@ -189,7 +236,7 @@ public class NominasGenerator {
 
         for(int r=1; r<=rows; r++) {
             int bruto = (int) sheet.getRow(r).getCell(0).getNumericCellValue();
-            Double retencion = sheet.getRow(r).getCell(1).getNumericCellValue();
+            Double retencion = sheet.getRow(r).getCell(1).getNumericCellValue()/100;
             lista.add(new BrutoRetenciones(bruto,retencion));
         }
 
@@ -203,7 +250,7 @@ public class NominasGenerator {
         ArrayList<Double> lista = new ArrayList<>();
 
         for(int r=0; r<=rows; r++) {
-            double cuota =  sheet.getRow(r).getCell(1).getNumericCellValue();
+            double cuota =  (double) sheet.getRow(r).getCell(1).getNumericCellValue()/100;
             lista.add(cuota);
         }
 
