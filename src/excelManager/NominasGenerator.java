@@ -106,9 +106,12 @@ public class NominasGenerator {
 
                 Double irpfRetencion = getIRPF(listaRetenciones, brutoAnual);
                 Double prorrateoExtra = salarioBaseMes/6 + complementosMes/6 + (double) antiguedadMes/6;
-                if(!prorrateo) prorrateoExtra=0.0;
                 Double brutoMensual = salarioBaseMes+complementosMes+antiguedadMes+prorrateoExtra;
                 Double calculoBaseEmpTrab = brutoMensual;
+                if(!prorrateo){
+                    brutoMensual-=prorrateoExtra;
+                    prorrateoExtra=0.0;
+                }
 
 
                 //CALCULO DEDUCCIONES EMPLEADO
