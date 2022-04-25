@@ -1,40 +1,15 @@
 package excelManager;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.ParseException;
 import java.util.*;
-import java.util.Map.Entry;
-import java.io.IOException;
 
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.math.BigInteger;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
-
-import org.w3c.dom.Element;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 
 public class NominasGenerator {
     public static void generarNominas(HashMap<String,List<String>> data, XSSFWorkbook workbook) throws ParseException {
@@ -67,8 +42,8 @@ public class NominasGenerator {
             TimeUnit time = TimeUnit.DAYS;
             long daysDiff = time.convert(mainDate.getTime() - dateAlta.getTime(), TimeUnit.MILLISECONDS);
 
-            //SI DAYSDIFF<31 DÍAS NO SE CALCULA LA NOMINA
-            if(daysDiff>31){
+            //SI DAYSDIFF<28 DÍAS NO SE CALCULA LA NOMINA
+            if(daysDiff>=28){
                 int añoCalculo = Integer.parseInt(mainDateString.substring(6));
                 int trienio = (añoCalculo-Integer.parseInt(dateAltaString.substring(6)))/3;
                 int mesCalculo = Integer.valueOf(mainDateString.substring(3,5));
@@ -175,26 +150,54 @@ public class NominasGenerator {
 
                 //CALCULO DE EXTRAS
                 if(!prorrateo && (mesCalculo==6 || mesCalculo==12)){
-                    Double brutoMensualExtra=0.0;
                     //COMPROBAMOS PORCENTAJES DE EXTRAS POR SI HAY UN EMPLEADO RECIÉN CONTRATADO
-                    Double porcentajeExtraDic = 1.0; Double porcentajeExtraJun = 1.0;
+                    Double porcentajeExtra=1.0;
                     if(daysDiff<365) {
                         Double[] extras = getExtrasRecienContratado(dateAltaString, mainDateString);
-                        porcentajeExtraDic = extras[1]; porcentajeExtraJun = extras[2];
+                        if(mesCalculo==12) porcentajeExtra = extras[1];
+                        if(mesCalculo==6) porcentajeExtra = extras[2];
                     }
 
-                    if(mesCalculo==6){
-                        //CALCULAMOS LA EXTRA DE JUNIO
-                        brutoMensualExtra = brutoMensual * porcentajeExtraJun;
-                    }
-                    if(mesCalculo==12){
-                        //CALCULAMOS LA EXTRA DE DICIEMBRE
-                        brutoMensualExtra = brutoMensual * porcentajeExtraDic;
-                    }
+                    Double brutoMensualExtra = brutoMensual * porcentajeExtra;
+                    Double salarioBaseExtra = salarioBaseMes * porcentajeExtra;
+                    Double complementoExtra = complementosMes * porcentajeExtra;
 
-                    Double irpfExtra = brutoMensualExtra * irpfRetencion;
-                    Double liquidoextra = brutoMensualExtra-irpfExtra;
+                    Double irpfExtra = brutoMensualExtra * irpfRetencion; Double totaldeduccionExtra = irpfExtra;
+                    Double liquidoextra = brutoMensualExtra-totaldeduccionExtra;
                     Double costeempresarioextra = brutoMensualExtra;
+
+                    //IMPRESION DE EXTRA
+                    System.out.println("----------------------");
+                    System.out.println(empresaInfo);
+                    System.out.println(trabajadorInfo);
+                    System.out.println(trabajadorInfo2);
+                    System.out.println("Nomina: Extra de "+getMonthName(mesCalculo)+" de "+añoCalculo);
+
+                    String importesextra = "IMPORTES DEL TRABAJADOR: \n  Salario base mes: "+prec(salarioBaseExtra)+", prorrateo mes: "+prec(prorrateoExtra);
+                    importesextra+=", complemento mes: "+prec(complementoExtra)+", antiguedad mes: "+antiguedadMes;
+                    System.out.println(importesextra);
+
+                    String descuentosextra = "DESCUENTOS DEL TRABAJADOR: \n";
+                    descuentosextra+= "  Seguridad Social: "+prec(listaCuotas.get(0)*100.0)+"% de 0.0: 0.0 \n";
+                    descuentosextra+="  Desempleo: "+prec(listaCuotas.get(1)*100.0)+"% de 0.0: 0.0 \n";
+                    descuentosextra+= "  Cuota de formacion: "+prec(listaCuotas.get(2)*100.0)+"% de 0.0: 0.0 \n";
+                    descuentosextra+= "  IRPF: "+prec(irpfRetencion*100.0)+"% de "+prec(brutoMensualExtra)+": "+prec(irpfExtra);
+                    System.out.println(descuentosextra);
+
+                    String ingresosextra = "TOTAL INGRESOS Y DEDUCCIONES DEL TRABAJADOR: \n";
+                    ingresosextra+= "  Devengos: "+prec(brutoMensualExtra)+", Deducciones: "+prec(totaldeduccionExtra)+", Liquido mensual: "+prec(liquidoextra);
+                    System.out.println(ingresosextra);
+
+                    String empresarioextra="PAGOS DEL EMPRESARIO: \n  Base del calculo sobre el empresario: 0.0\n";
+                    empresarioextra+="  Seguridad Social: "+prec(listaCuotas.get(4)*100.0)+"%: 0.0\n";
+                    empresarioextra+="  Desempleo: "+prec(listaCuotas.get(6)*100.0)+"%: 0.0\n";
+                    empresarioextra+= "  Formacion: "+prec(listaCuotas.get(7)*100.0)+"%: 0.0\n";
+                    empresarioextra+= "  FOGASA: "+prec(listaCuotas.get(5)*100.0)+"%: 0.0\n";
+                    empresarioextra+= "  Accidentes de trabajo: "+prec(listaCuotas.get(3)*100.0)+"%: 0.0\n";
+                    empresarioextra+= "  Total empresario: 0.0\n";
+                    empresarioextra+= "  COSTE TOTAL DEL TRABAJADOR: "+prec(costeempresarioextra);
+                    System.out.println(empresarioextra);
+                    //FIN IMPRESION
                 }
             }
         }
