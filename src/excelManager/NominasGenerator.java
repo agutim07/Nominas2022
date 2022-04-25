@@ -62,7 +62,6 @@ public class NominasGenerator {
 
             //CHECKEAMOS LA FECHA DE ALTA EN LA EMPRESA CON LA INTRODUCIDA
             String dateAltaString = data.get(key).get(5);
-            System.out.print(key + " " + dateAltaString + " ");
             Date dateAlta = new SimpleDateFormat("dd/MM/yyyy").parse(dateAltaString);
 
             TimeUnit time = TimeUnit.DAYS;
@@ -70,12 +69,12 @@ public class NominasGenerator {
 
             //SI DAYSDIFF<31 DÍAS NO SE CALCULA LA NOMINA
             if(daysDiff>31){
-                int trienio = (Integer.parseInt(mainDateString.substring(6))-Integer.parseInt(dateAltaString.substring(6)))/3;
-                System.out.print(trienio + " ");
+                int añoCalculo = Integer.parseInt(mainDateString.substring(6));
+                int trienio = (añoCalculo-Integer.parseInt(dateAltaString.substring(6)))/3;
+                int mesCalculo = Integer.valueOf(mainDateString.substring(3,5));
 
                 String pro = data.get(key).get(7); boolean prorrateo=false;
                 if(pro.equals("SI")) prorrateo=true;
-                System.out.print(prorrateo + " ");
 
                 String categoria = data.get(key).get(6);
                 int[] salariocomp = getSalarioyComplementos(categoria,listaCategorias);
@@ -87,7 +86,6 @@ public class NominasGenerator {
 
                 //CASO: NO TRABAJA EL ANO ENTERO
                 if(daysDiff<365){
-                    System.out.print(" ?? ");
                     Double[] extras = getExtrasRecienContratado(dateAltaString, mainDateString);
                     int nominasCompletas = extras[0].intValue();
                     Double porcentajeExtraDic = extras[1]; Double porcentajeExtraJun = extras[2];
@@ -101,18 +99,17 @@ public class NominasGenerator {
                     //CASO: PRORRATEO Y CAMBIO DE TRIENIO AL SIGUIENTE AÑO
                     int nextTrienio = ((Integer.parseInt(mainDateString.substring(6))+1)-Integer.parseInt(dateAltaString.substring(6)))/3;
                     if(prorrateo && nextTrienio!=trienio){
-                        System.out.print(" -- ");
                         brutoAnual += (double) listaImporteTrienios.get(nextTrienio)/6 - (double) antiguedadMes/6;
                     }
                 }
-                System.out.print(prec(brutoAnual)+" ");
                 //FIN CALCULO DE BRUTO ANUAL
 
                 Double irpfRetencion = getIRPF(listaRetenciones, brutoAnual);
                 Double prorrateoExtra = salarioBaseMes/6 + complementosMes/6 + (double) antiguedadMes/6;
+                if(!prorrateo) prorrateoExtra=0.0;
                 Double brutoMensual = salarioBaseMes+complementosMes+antiguedadMes+prorrateoExtra;
                 Double calculoBaseEmpTrab = brutoMensual;
-                if(!prorrateo) brutoMensual -= prorrateoExtra;
+
 
                 //CALCULO DEDUCCIONES EMPLEADO
                 Double ssocial = calculoBaseEmpTrab * listaCuotas.get(0);
@@ -132,11 +129,49 @@ public class NominasGenerator {
                 Double totalempresario = ssocialEmp + desempleoEmp + fogasa + formacionEmp + accidentes;
 
                 Double costeRealEmp = brutoMensual + totalempresario;
-                System.out.print(prec(costeRealEmp));
+
+                //IMPRESION
+                System.out.println("----------------------");
+                String empresaInfo = "Empresa: "+data.get(key).get(4)+", CIF: "+ data.get(key).get(3);
+                System.out.println(empresaInfo);
+
+                String trabajadorInfo = data.get(key).get(0)+" "+data.get(key).get(1)+" "+data.get(key).get(2)+", DNI: "+ key;
+                System.out.println(trabajadorInfo);
+
+                String trabajadorInfo2 = "IBAN: "+data.get(key).get(10)+", Categoria: "+data.get(key).get(6)+ ", Fecha de alta: "+data.get(key).get(5);
+                trabajadorInfo2+=", Bruto Anual: "+prec(brutoAnual);
+                System.out.println(trabajadorInfo2);
+
+                System.out.println("Nomina: "+getMonthName(mesCalculo)+" de "+añoCalculo);
+
+                String importes = "IMPORTES DEL TRABAJADOR: \n  Salario base mes: "+prec(salarioBaseMes)+", prorrateo mes: "+prec(prorrateoExtra);
+                importes+=", complemento mes: "+prec(complementosMes)+", antiguedad mes: "+antiguedadMes;
+                System.out.println(importes);
+
+                String descuentos = "DESCUENTOS DEL TRABAJADOR: \n";
+                descuentos+= "  Seguridad Social: "+prec(listaCuotas.get(0)*100.0)+"% de "+prec(calculoBaseEmpTrab)+": "+prec(ssocial)+"\n";
+                descuentos+="  Desempleo: "+prec(listaCuotas.get(1)*100.0)+"% de "+prec(calculoBaseEmpTrab)+": "+prec(desempleo)+"\n";
+                descuentos+= "  Cuota de formacion: "+prec(listaCuotas.get(2)*100.0)+"% de "+prec(calculoBaseEmpTrab)+": "+prec(formacion)+"\n";
+                descuentos+= "  IRPF: "+prec(irpfRetencion*100.0)+"% de "+prec(brutoMensual)+": "+prec(irpf);
+                System.out.println(descuentos);
+
+                String ingresos = "TOTAL INGRESOS Y DEDUCCIONES DEL TRABAJADOR: \n";
+                ingresos+= "  Devengos: "+prec(brutoMensual)+", Deducciones: "+prec(totaldeducciones)+", Liquido mensual: "+prec(liquidomensual);
+                System.out.println(ingresos);
+
+                String empresario="PAGOS DEL EMPRESARIO: \n  Base del calculo sobre el empresario: "+prec(calculoBaseEmpTrab)+"\n";
+                empresario+="  Seguridad Social: "+prec(listaCuotas.get(4)*100.0)+"%: "+prec(ssocialEmp)+"\n";
+                empresario+="  Desempleo: "+prec(listaCuotas.get(6)*100.0)+"%: "+prec(desempleoEmp)+"\n";
+                empresario+= "  Formacion: "+prec(listaCuotas.get(7)*100.0)+"%: "+prec(formacionEmp)+"\n";
+                empresario+= "  FOGASA: "+prec(listaCuotas.get(5)*100.0)+"%: "+prec(fogasa)+"\n";
+                empresario+= "  Accidentes de trabajo: "+prec(listaCuotas.get(3)*100.0)+"%: "+prec(accidentes)+"\n";
+                empresario+= "  Total empresario: "+prec(totalempresario)+"\n";
+                empresario+= "  COSTE TOTAL DEL TRABAJADOR: "+prec(costeRealEmp);
+                System.out.println(empresario);
+                //FIN IMPRESION
 
                 //CALCULO DE EXTRAS
-                if(!prorrateo){
-                    int mesCalculo = Integer.valueOf(mainDateString.substring(3,5));
+                if(!prorrateo && (mesCalculo==6 || mesCalculo==12)){
                     Double brutoMensualExtra=0.0;
                     //COMPROBAMOS PORCENTAJES DE EXTRAS POR SI HAY UN EMPLEADO RECIÉN CONTRATADO
                     Double porcentajeExtraDic = 1.0; Double porcentajeExtraJun = 1.0;
@@ -157,10 +192,8 @@ public class NominasGenerator {
                     Double irpfExtra = brutoMensualExtra * irpfRetencion;
                     Double liquidoextra = brutoMensualExtra-irpfExtra;
                     Double costeempresarioextra = brutoMensualExtra;
-                    System.out.print(" EXTRA: "+prec(brutoMensualExtra)+" "+prec(liquidoextra)+ " "+prec(costeempresarioextra));
                 }
             }
-            System.out.println();
         }
     }
 
@@ -307,5 +340,24 @@ public class NominasGenerator {
                 .doubleValue();
 
         return newDouble;
+    }
+
+    public static String getMonthName(int m){
+        switch (m){
+            case 1: return "Enero";
+            case 2: return "Febrero";
+            case 3: return "Marzo";
+            case 4: return "Abril";
+            case 5: return "Mayo";
+            case 6: return "Junio";
+            case 7: return "Julio";
+            case 8: return "Agosto";
+            case 9: return "Septiembre";
+            case 10: return "Octubre";
+            case 11: return "Noviembre";
+            case 12: return "Diciembre";
+        }
+
+        return "";
     }
 }
