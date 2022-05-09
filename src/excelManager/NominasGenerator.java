@@ -1,18 +1,50 @@
 package excelManager;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.MalformedURLException;
 import java.text.ParseException;
 import java.util.*;
 
 import java.text.SimpleDateFormat;
 import java.util.concurrent.TimeUnit;
 
+import com.itextpdf.io.image.ImageDataFactory;
+import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.borders.Border;
+import com.itextpdf.layout.borders.SolidBorder;
+import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.element.Image;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.properties.TextAlignment;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
+
+import org.w3c.dom.Element;
+import org.w3c.dom.Attr;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 public class NominasGenerator {
-    public static void generarNominas(HashMap<String,List<String>> data, XSSFWorkbook workbook) throws ParseException {
+    public static void generarNominas(HashMap<String,List<String>> data, XSSFWorkbook workbook) throws ParseException, IOException {
         //CONSEGUIMOS LOS DATOS DE LAS HOJAS 1-4
         ArrayList<Categoria> listaCategorias = getHoja3(workbook);
         ArrayList<BrutoRetenciones> listaRetenciones = getHoja4(workbook);
@@ -32,7 +64,14 @@ public class NominasGenerator {
         String mainDateString = "01/"+dateEntrada;
         Date mainDate = new SimpleDateFormat("dd/MM/yyyy").parse(mainDateString);
 
+        int prueba=1;
+
         for(Map.Entry entry:data.entrySet()){
+            if(prueba==1){
+                PDFgenerator(entry.getKey().toString(),data);
+            }
+            prueba++;
+
             String key = entry.getKey().toString();
 
             //CHECKEAMOS LA FECHA DE ALTA EN LA EMPRESA CON LA INTRODUCIDA
@@ -249,6 +288,68 @@ public class NominasGenerator {
         }
 
         return lista.get(lista.size()-1).getRetencion();
+    }
+
+    public static void PDFgenerator(String key, HashMap<String,List<String>> data) throws IOException {
+        File yourFile = new File(".\\resources\\prueba.pdf");
+        yourFile.createNewFile();
+        PdfWriter writer = new PdfWriter(new FileOutputStream(yourFile));
+        PdfDocument pdfDoc = new PdfDocument(writer);
+        Document doc = new Document(pdfDoc, PageSize.LETTER);
+
+        Paragraph empty = new Paragraph("");
+        Table tabla1 = new Table(2);
+        tabla1.setWidth(500);
+
+        //String dateAltaString = data.get(key).get(5);
+
+        Paragraph nom = new Paragraph("NOMBRE");
+        Paragraph cif = new Paragraph("CIF: ");
+
+        Paragraph dir1 = new Paragraph("Avenida de la facultad - 6");
+        Paragraph dir2 = new Paragraph("24001 León");
+
+        Cell cell1 = new Cell();
+        cell1.setBorder(new SolidBorder(1));
+        cell1.setWidth(250);
+        cell1.setTextAlignment(TextAlignment.CENTER);
+
+        cell1.add(nom);
+        cell1.add(cif);
+        cell1.add(dir1);
+        cell1.add(dir2);
+        tabla1.addCell(cell1);
+
+        Cell cell2 = new Cell();
+        cell2.setBorder(Border.NO_BORDER);
+        cell2.setPadding(10);
+        cell2.setTextAlignment(TextAlignment.RIGHT);
+        cell2.add(new Paragraph("IBAN: "));
+        cell2.add(new Paragraph("Bruto anual: "));
+        cell2.add(new Paragraph("Categoría: "));
+        cell2.add(new Paragraph("Fecha de alta: "));
+        tabla1.addCell(cell2);
+
+        Table tabla2 = new Table(2);
+
+        tabla2.setWidth(500);
+        Image img = new Image(ImageDataFactory.create(".\\resources\\logo\\logo.png"));
+        img.setBorder(Border.NO_BORDER);
+        img.setPadding(10);
+
+        Cell cell3 = new Cell();
+        cell3.add(img);
+        cell3.setBorder(Border.NO_BORDER);
+        cell3.setPaddingLeft(23);
+        cell3.setPaddingTop(20);
+
+        cell3.setWidth(250);
+        tabla2.addCell(cell3);
+
+        doc.add(tabla1);
+        doc.add(tabla2);
+
+        doc.close();
     }
 
     public static ArrayList<Categoria> getHoja3(XSSFWorkbook workbook){

@@ -11,5 +11,7 @@
     <orderEntry type="library" name="commons-compress-1.21" level="project" />
     <orderEntry type="library" name="commons-collections4-4.4" level="project" />
     <orderEntry type="library" name="log4j-core-2.17.2" level="project" />
+    <orderEntry type="library" name="barcodes-7.2.2" level="project" />
+    <orderEntry type="library" name="slf4j-api-1.7.36" level="project" />
   </component>
 </module>
