@@ -6,18 +6,15 @@
 
 package excelManager;
 
+import map.*;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.File;
 import java.text.ParseException;
-import java.util.Map;
+import java.util.*;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
 
-import java.text.SimpleDateFormat;  
-import java.util.Date;  
+import java.text.SimpleDateFormat;
 import java.math.BigInteger;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -45,6 +42,10 @@ import javax.xml.transform.stream.StreamResult;
  */
 public class ExcelManager {
     private static MissingCellPolicy xRow;
+    public static List<Trabajadorbbdd> data;
+    public static List<Empresas> dataEmp;
+    public static List<Categorias> dataCat;
+    public static List<Nomina> dataNom;
     
      public static void main(String[] args) throws IOException, TransformerException, ParserConfigurationException, ParseException {
         //IMPORTAMOS EXCEL CON DATOS
@@ -66,7 +67,10 @@ public class ExcelManager {
         docCCC.appendChild(rootElementCCC);
 
         int keySinDNI=0;
-        HashMap<String,List<String>> data = new HashMap<String,List<String>>();
+        data = new ArrayList<>();
+        dataEmp = new ArrayList<>();
+        dataCat = new ArrayList<>();
+        dataNom = new ArrayList<>();
 
         //LIST VALUES POSICIONES: 0 NOMBRE, 1 APELLIDO1, 2 APELLIDO2, 3 CIF_EMP
         //4 NOMBRE_EMP, 5 FECHAALTA_EMP, 6 CATEGORIA, 7 PRORRATA, 8 CCC, 9 PAIS CCC
@@ -86,7 +90,7 @@ public class ExcelManager {
                         key = realDNI;
                         sheet.getRow(r).getCell(0).setCellValue(key);
                     }
-                    if(checkExists(key,data)) duplicate=true;
+                    if(checkDNIExists(key)) duplicate=true;
                 }else{
                     duplicate=true;
                     key="sinDNI_"+keySinDNI;
@@ -117,7 +121,7 @@ public class ExcelManager {
                     }else{
                         String add = "";
                         if(i==12){
-                            add = generateEmail(listValues,data);
+                            add = generateEmail(listValues);
                             sheet.getRow(r).createCell(12);
                             sheet.getRow(r).getCell(12).setCellValue(add);
                         }
@@ -129,7 +133,12 @@ public class ExcelManager {
                         listValues.add(add);
                     }
                 }
-                data.put(key,listValues);
+
+                //SI EL TRABAJADOR NO EXISTE LO AÑADIMOS A LA BASE DE DATOS (SI TIENE EL DNI EN BLANCO NO SE INSERTA)
+                if(!checkTrabajadorExists(key,listValues.get(0),listValues.get(5))) {
+                    Trabajadorbbdd nuevo = getTrabajador(key,listValues);
+                    data.add(nuevo);
+                }
             }
 
             if(duplicate){
@@ -142,8 +151,8 @@ public class ExcelManager {
         }
 
         //GENERADOR DE NOMINAS
-        NominasGenerator ng = new NominasGenerator();
-        ng.generarNominas(data,workbook);
+        NominasGenerator.generarNominas(data,dataCat,dataNom,workbook);
+        NominasPDFGenerator.generarPDFs(dataNom);
 
         //CREACION DE DOCUMENTOS Y FIN
         createErroresFile(doc,"dni");
@@ -154,25 +163,108 @@ public class ExcelManager {
       
         
     }
-     
-    public static boolean checkExists(String key, HashMap<String,List<String>> data){
+
+    public static Trabajadorbbdd getTrabajador(String key, ArrayList<String> listValues) throws ParseException {
+        //LIST VALUES POSICIONES: 0 NOMBRE, 1 APELLIDO1, 2 APELLIDO2, 3 CIF_EMP
+        //4 NOMBRE_EMP, 5 FECHAALTA_EMP, 6 CATEGORIA, 7 PRORRATA, 8 CCC, 9 PAIS CCC
+        //10 IBAN, 11 EMAIL
+        Trabajadorbbdd t = new Trabajadorbbdd();
+        t.setNifnie(key);
+        t.setNombre(listValues.get(0));
+        t.setApellido1(listValues.get(1));
+        t.setApellido2(listValues.get(2));
+        t.setFechaAlta(new SimpleDateFormat("dd/MM/yyyy").parse(listValues.get(5)));
+        t.setProrrateo(listValues.get(7));
+        t.setCodigoCuenta(listValues.get(8));
+        t.setIban(listValues.get(10));
+        t.setEmail(listValues.get(11));
+
+        int posEmpresa = checkEmpresa(listValues.get(3),listValues.get(4));
+        t.setEmpresas(dataEmp.get(posEmpresa));
+
+        int posCategoria = checkCategoria(listValues.get(6));
+        t.setCategorias(dataCat.get(posCategoria));
+
+        Set empresasCollecion = dataEmp.get(posEmpresa).getTrabajadorbbdds();
+        empresasCollecion.add(t);
+        dataEmp.get(posEmpresa).setTrabajadorbbdds(empresasCollecion);
+
+        Set categoriaCollecion = dataCat.get(posCategoria).getTrabajadorbbdds();
+        categoriaCollecion.add(t);
+        dataCat.get(posCategoria).setTrabajadorbbdds(categoriaCollecion);
+
+        return t;
+    }
+
+    public static int checkCategoria(String cat){
+        //VEMOS SI EXISTE LA CATEGORIA, SINO EXISTE LA CREAMOS
+        int i;
+        for(i=0; i<dataCat.size(); i++){
+            if(dataCat.get(i).getNombreCategoria().equals(cat)){
+                return i;
+            }
+        }
+
+        Categorias nueva = new Categorias();
+        nueva.setNombreCategoria(cat);
+        dataCat.add(nueva);
+        return i;
+    }
+
+    public static int checkEmpresa(String cif, String nombre){
+        //VEMOS SI EXISTE LA EMPRESA, SINO EXISTE LA CREAMOS
+        int i;
+        for(i=0; i<dataEmp.size(); i++){
+            if(dataEmp.get(i).getCif().equals(cif)){
+                return i;
+            }
+        }
+
+        Empresas nueva = new Empresas();
+        nueva.setCif(cif);
+        nueva.setNombre(nombre);
+        dataEmp.add(nueva);
+        return i;
+    }
+
+
+
+    public static boolean checkTrabajadorExists(String dni, String nombre, String date) throws ParseException {
+        //SI EL DNI ESTÁ EN BLANCO NO SE INSERTA
+        if(dni.substring(0,6).equals("sinDNI")) return true;
+
+        Date fechaAlta = new SimpleDateFormat("dd/MM/yyyy").parse(date);
+        //UN TRABAJADOR EXISTE SI YA EXISTE ALGUIEN CON SU NOMBRE, DNI Y FECHA DE ALTA
+        for(int i=0; i<data.size(); i++){
+            Trabajadorbbdd iter = data.get(i);
+            if(iter.getNifnie().equals(dni) && iter.getNombre().equals(nombre) && iter.getFechaAlta().equals(fechaAlta)){
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+
+    public static boolean checkDNIExists(String key){
         key = key.substring(0,key.length()-1);
         
-        for(Map.Entry entry:data.entrySet()){
-            String key2 = entry.getKey().toString().substring(0,key.length());
+        for(int i=0; i<data.size(); i++){
+            String key2 = data.get(i).getNifnie().substring(0,key.length());
             if(key.equals(key2)) return true;
         }
         
         return false;
     }
     
-    public static String generateEmail(List<String> listValues, HashMap<String,List<String>> data){
+    public static String generateEmail(List<String> listValues){
         String email="";
         if(listValues.get(2)!="")email+=listValues.get(2).charAt(0);
         email+=listValues.get(1).charAt(0);
         email+=listValues.get(0).charAt(0);
         String parte2 = "@"+listValues.get(4)+".es";
-        int ap = checkEmailExists(email+parte2,data);
+        int ap = checkEmailExists(email+parte2);
         String num="";
         if(ap<10){
             num = 0 +  String.valueOf(ap);
@@ -183,12 +275,11 @@ public class ExcelManager {
         return email+num+parte2;
     }
     
-    public static int checkEmailExists(String email, HashMap<String,List<String>> data){
+    public static int checkEmailExists(String email){
         int apariciones=0;
         
-        for(Map.Entry entry:data.entrySet()){
-            String key = entry.getKey().toString();
-            String email2 = data.get(key).get(11);
+        for(int j=0; j<data.size(); j++){
+            String email2 = data.get(j).getEmail();
             String email3="";
             for (int i=0; i<email2.length(); i++) { 
                 char c = email2.charAt(i);
