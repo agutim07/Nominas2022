@@ -168,8 +168,8 @@ public class NominasGenerator {
                 empresario+= "  Accidentes de trabajo: "+prec(listaCuotas.get(3)*100.0)+"%: "+prec(accidentes)+"\n";
                 nom.setAccidentesTrabajoEmpresario(prec(listaCuotas.get(3)*100.0)); nom.setImporteAccidentesTrabajoEmpresario(prec(accidentes));
                 empresario+= "  Total empresario: "+prec(totalempresario)+"\n";
-                nom.setCosteTotalEmpresario(prec(totalempresario));
                 empresario+= "  COSTE TOTAL DEL TRABAJADOR: "+prec(costeRealEmp);
+                nom.setCosteTotalEmpresario(prec(costeRealEmp));
                 System.out.println(empresario);
 
                 listaNominas.add(nom);
@@ -197,10 +197,11 @@ public class NominasGenerator {
                     Double costeempresarioextra = brutoMensualExtra;
 
                     //IMPRESION DE EXTRA Y CREACCION DE OBJETO NOMINA
-                    Nomina nomExtra = nom;
-                    nomExtra.setBrutoNomina(prec(brutoMensualExtra)); nomExtra.setImporteSalarioMes(prec(salarioBaseExtra));
-                    nomExtra.setImporteComplementoMes(prec(complementoExtra)); nomExtra.setImporteIrpf(prec(irpfExtra));
-                    nomExtra.setLiquidoNomina(prec(liquidoextra));
+                    Nomina nomExtra = new Nomina();
+                    nomExtra.setTrabajadorbbdd(data.get(i));
+                    nomExtra.setNumeroTrienios(trienio);
+                    nomExtra.setMes(mesCalculo); nomExtra.setAnio(añoCalculo);
+                    nomExtra.setBrutoAnual(prec(brutoAnual));
 
                     System.out.println("----------------------");
                     System.out.println(empresaInfo);
@@ -211,36 +212,40 @@ public class NominasGenerator {
                     String importesextra = "IMPORTES DEL TRABAJADOR: \n  Salario base mes: "+prec(salarioBaseExtra)+", prorrateo mes: "+prec(prorrateoExtra);
                     importesextra+=", complemento mes: "+prec(complementoExtra)+", antiguedad mes: "+antiguedadMes;
                     System.out.println(importesextra);
+                    nomExtra.setImporteSalarioMes(prec(salarioBaseExtra)); nomExtra.setImporteTrienios((double) antiguedadMes);
+                    nomExtra.setImporteComplementoMes(prec(complementoExtra)); nomExtra.setValorProrrateo(prec(prorrateoExtra));
 
                     String descuentosextra = "DESCUENTOS DEL TRABAJADOR: \n";
                     descuentosextra+= "  Seguridad Social: "+prec(listaCuotas.get(0)*100.0)+"% de 0.0: 0.0 \n";
-                    nomExtra.setImporteSeguridadSocialTrabajador(0.0);
+                    nomExtra.setSeguridadSocialTrabajador(nom.getSeguridadSocialTrabajador()); nomExtra.setImporteSeguridadSocialTrabajador(0.0);
                     descuentosextra+="  Desempleo: "+prec(listaCuotas.get(1)*100.0)+"% de 0.0: 0.0 \n";
-                    nomExtra.setImporteDesempleoTrabajador(0.0);
+                    nomExtra.setImporteDesempleoTrabajador(0.0); nomExtra.setDesempleoTrabajador(nom.getDesempleoTrabajador());
                     descuentosextra+= "  Cuota de formacion: "+prec(listaCuotas.get(2)*100.0)+"% de 0.0: 0.0 \n";
-                    nomExtra.setImporteFormacionTrabajador(0.0);
+                    nomExtra.setImporteFormacionTrabajador(0.0); nomExtra.setFormacionTrabajador(nom.getFormacionTrabajador());
                     descuentosextra+= "  IRPF: "+prec(irpfRetencion*100.0)+"% de "+prec(brutoMensualExtra)+": "+prec(irpfExtra);
+                    nomExtra.setImporteIrpf(prec(irpfExtra)); nomExtra.setIrpf(nom.getIrpf());
                     System.out.println(descuentosextra);
 
                     String ingresosextra = "TOTAL INGRESOS Y DEDUCCIONES DEL TRABAJADOR: \n";
                     ingresosextra+= "  Devengos: "+prec(brutoMensualExtra)+", Deducciones: "+prec(totaldeduccionExtra)+", Liquido mensual: "+prec(liquidoextra);
                     System.out.println(ingresosextra);
+                    nomExtra.setBrutoNomina(prec(brutoMensualExtra)); nomExtra.setLiquidoNomina(prec(liquidoextra));
 
                     String empresarioextra="PAGOS DEL EMPRESARIO: \n  Base del calculo sobre el empresario: 0.0\n";
                     nomExtra.setBaseEmpresario(0.0);
                     empresarioextra+="  Seguridad Social: "+prec(listaCuotas.get(4)*100.0)+"%: 0.0\n";
-                    nomExtra.setImporteSeguridadSocialEmpresario(0.0);
+                    nomExtra.setImporteSeguridadSocialEmpresario(0.0);  nomExtra.setSeguridadSocialEmpresario(nom.getSeguridadSocialEmpresario());
                     empresarioextra+="  Desempleo: "+prec(listaCuotas.get(6)*100.0)+"%: 0.0\n";
-                    nomExtra.setImporteDesempleoEmpresario(0.0);
+                    nomExtra.setImporteDesempleoEmpresario(0.0); nomExtra.setDesempleoEmpresario(nom.getDesempleoEmpresario());
                     empresarioextra+= "  Formacion: "+prec(listaCuotas.get(7)*100.0)+"%: 0.0\n";
-                    nomExtra.setImporteFormacionEmpresario(0.0);
+                    nomExtra.setImporteFormacionEmpresario(0.0); nomExtra.setFormacionEmpresario(nom.getFormacionEmpresario());
                     empresarioextra+= "  FOGASA: "+prec(listaCuotas.get(5)*100.0)+"%: 0.0\n";
-                    nomExtra.setImporteFogasaempresario(0.0);
+                    nomExtra.setImporteFogasaempresario(0.0); nomExtra.setFogasaempresario(nom.getFogasaempresario());
                     empresarioextra+= "  Accidentes de trabajo: "+prec(listaCuotas.get(3)*100.0)+"%: 0.0\n";
-                    nomExtra.setImporteAccidentesTrabajoEmpresario(0.0);
+                    nomExtra.setImporteAccidentesTrabajoEmpresario(0.0); nomExtra.setAccidentesTrabajoEmpresario(nom.getAccidentesTrabajoEmpresario());
                     empresarioextra+= "  Total empresario: 0.0\n";
-                    nomExtra.setCosteTotalEmpresario(0.0);
                     empresarioextra+= "  COSTE TOTAL DEL TRABAJADOR: "+prec(costeempresarioextra);
+                    nomExtra.setCosteTotalEmpresario(prec(costeempresarioextra));
                     System.out.println(empresarioextra);
 
                     listaNominas.add(nomExtra);

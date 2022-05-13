@@ -37,13 +37,15 @@ import com.itextpdf.io.font.constants.StandardFonts;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.List;
 
 public class NominasPDFGenerator {
     public static void generarPDFs(List<Nomina> listaNominas) throws IOException {
-        for(int i=0; i<1; i++){
+        for(int i=0; i<listaNominas.size(); i++){
             PDFgenerator(listaNominas.get(i));
         }
     }
@@ -52,7 +54,7 @@ public class NominasPDFGenerator {
         Trabajadorbbdd trab = n.getTrabajadorbbdd();
         Empresas emp = trab.getEmpresas();
         boolean isExtra = false;
-        if(n.getBaseEmpresario()==0.0) isExtra = true;
+        if(n.getBaseEmpresario()==0) isExtra = true;
 
         String nombreFile = trab.getNifnie()+trab.getNombre()+trab.getApellido1()+trab.getApellido2()+getMonthName(n.getMes())+n.getAnio();
         if(isExtra) nombreFile += "EXTRA";
@@ -130,9 +132,9 @@ public class NominasPDFGenerator {
 
         //TABLA 3
         Table tabla3 = new Table(1);
-        tabla2.setBorderCollapse(BorderCollapsePropertyValue.SEPARATE);
-        tabla2.setVerticalBorderSpacing(20);
-        tabla2.setWidth(500);
+        tabla3.setBorderCollapse(BorderCollapsePropertyValue.SEPARATE);
+        tabla3.setVerticalBorderSpacing(5);
+        tabla3.setWidth(500);
 
         Cell cell5 = new Cell();
         cell5.setBorder(Border.NO_BORDER);
@@ -165,7 +167,8 @@ public class NominasPDFGenerator {
         tabla5.setFontSize(8f);
 
         Cell cell7 = new Cell();
-        cell7.setBorder(new SolidBorder(1));
+        cell7.setBorderRight(new SolidBorder(1));
+        cell7.setBorderLeft(new SolidBorder(1));
         cell7.setWidth(250);
         cell7.setTextAlignment(TextAlignment.LEFT);
 
@@ -182,15 +185,16 @@ public class NominasPDFGenerator {
         p4.add(new Tab()); p4.addTabStops(new TabStop(1000, TabAlignment.RIGHT));
         p4.add("{"+n.getNumeroTrienios()+" trienio/s} "+n.getImporteTrienios());
 
-        cell7.add(new Paragraph("Importes mensuales").setFont(bold).setTextAlignment(TextAlignment.CENTER));
+        cell7.add(new Paragraph("Importes mensuales").setFont(bold).setTextAlignment(TextAlignment.CENTER)).setFontSize(9f);
         cell7.add(p1);
         cell7.add(p2);
         cell7.add(p3);
         cell7.add(p4);
-        cell7.add(new Paragraph("TOTAL DEVENGOS: "+n.getBrutoNomina()).setFont(bold).setTextAlignment(TextAlignment.RIGHT).setMultipliedLeading(2.0f).setVerticalAlignment(VerticalAlignment.BOTTOM));
+        cell7.add(new Paragraph("TOTAL DEVENGOS: "+n.getBrutoNomina()).setFont(bold).setTextAlignment(TextAlignment.CENTER).setMultipliedLeading(2.0f).setVerticalAlignment(VerticalAlignment.BOTTOM));
 
         Cell cell8 = new Cell();
-        cell8.setBorder(new SolidBorder(1));
+        cell8.setBorderRight(new SolidBorder(1));
+        cell8.setBorderLeft(new SolidBorder(1));
         cell8.setWidth(250);
         cell8.setTextAlignment(TextAlignment.LEFT);
 
@@ -200,23 +204,152 @@ public class NominasPDFGenerator {
         Paragraph p5 = new Paragraph("Desempleo").setFont(font);
         p5.add(new Tab()); p5.addTabStops(new TabStop(1000, TabAlignment.RIGHT));
         p5.add(n.getDesempleoTrabajador()+"% de "+n.getBaseEmpresario()+": "+n.getImporteDesempleoTrabajador());
-        Paragraph p6 = new Paragraph("Cuota de formación").setFont(font);
+        Paragraph p6 = new Paragraph("Formación").setFont(font);
         p6.add(new Tab()); p6.addTabStops(new TabStop(1000, TabAlignment.RIGHT));
         p6.add(n.getFormacionTrabajador()+"% de "+n.getBaseEmpresario()+": "+n.getImporteFormacionTrabajador());
         Paragraph p7 = new Paragraph("IRPF").setFont(font);
         p7.add(new Tab()); p7.addTabStops(new TabStop(1000, TabAlignment.RIGHT));
         p7.add(n.getIrpf()+"% de "+n.getBrutoNomina()+": "+n.getImporteIrpf());
 
-        cell8.add(new Paragraph("Descuentos ").setFont(bold).setTextAlignment(TextAlignment.CENTER));
+        cell8.add(new Paragraph("Descuentos ").setFont(bold).setTextAlignment(TextAlignment.CENTER)).setFontSize(9f);
         cell8.add(p4_);
         cell8.add(p5);
         cell8.add(p6);
         cell8.add(p7);
-        cell8.add(new Paragraph("TOTAL DEDUCCIONES ").setFont(bold).setTextAlignment(TextAlignment.RIGHT).setMultipliedLeading(2.0f).setVerticalAlignment(VerticalAlignment.BOTTOM));
+        cell8.add(new Paragraph("TOTAL DEDUCCIONES: "+prec(n.getBrutoNomina()-n.getLiquidoNomina())).setFont(bold).setTextAlignment(TextAlignment.CENTER).setMultipliedLeading(2.0f).setVerticalAlignment(VerticalAlignment.BOTTOM));
 
         tabla5.addCell(cell7);
         tabla5.addCell(cell8);
 
+        //TABLA 6
+        Table tabla6 = new Table(2);
+        tabla6.setWidth(500);
+        tabla6.setBorder(new SolidBorder(1));
+
+        Cell cell9 = new Cell();
+        cell9.setBorder(Border.NO_BORDER);
+        cell9.setWidth(250);
+        cell9.setPadding(4);
+        cell9.setTextAlignment(TextAlignment.RIGHT);
+        cell9.setFontSize(9f);
+
+        cell9.add(new Paragraph("Líquido a percibir:").setFont(bold));
+
+        Cell cell9_ = new Cell();
+        cell9_.setBorder(Border.NO_BORDER);
+        cell9_.setWidth(250);
+        cell9_.setPadding(4);
+        cell9_.setTextAlignment(TextAlignment.LEFT);
+        cell9_.setFontSize(9f);
+
+        cell9_.add(new Paragraph(""+n.getLiquidoNomina()).setFont(bold));
+
+        tabla6.addCell(cell9);
+        tabla6.addCell(cell9_);
+
+        //TABLA 7
+        Table tabla7 = new Table(1);
+        tabla7.setWidth(500);
+        tabla7.setFontColor(ColorConstants.RED);
+        tabla7.setBorder(new SolidBorder(ColorConstants.RED,1));
+        tabla7.setBorderCollapse(BorderCollapsePropertyValue.SEPARATE);
+        tabla7.setMarginTop(20f);
+
+        Cell cell10 = new Cell();
+        cell10.setBorder(Border.NO_BORDER);
+        cell10.setWidth(500);
+        cell10.setPadding(4);
+        cell10.setTextAlignment(TextAlignment.CENTER);
+
+        cell10.add(new Paragraph("Pagos Empresario").setFont(bold));
+        tabla7.addCell(cell10);
+
+        //TABLA 8
+        Table tabla8 = new Table(2);
+        tabla8.setWidth(500);
+        tabla8.setFontColor(ColorConstants.RED);
+        tabla8.setBorderLeft(new SolidBorder(ColorConstants.RED,1));
+        tabla8.setBorderRight(new SolidBorder(ColorConstants.RED,1));
+        tabla8.setFontSize(9f);
+
+        SolidLine line = new SolidLine(1f);
+        line.setColor(ColorConstants.RED);
+        LineSeparator ls = new LineSeparator(line);
+        ls.setMarginTop(5);
+        ls.setMarginBottom(5);
+        ls.setWidth(100);
+        ls.setHorizontalAlignment(HorizontalAlignment.RIGHT);
+
+        SolidLine lineL = new SolidLine(1f);
+        lineL.setColor(ColorConstants.RED);
+        LineSeparator lsL = new LineSeparator(line);
+        lsL.setMarginTop(5);
+        lsL.setMarginBottom(5);
+        lsL.setWidth(100);
+        lsL.setHorizontalAlignment(HorizontalAlignment.LEFT);
+
+        Cell cell11 = new Cell();
+        cell11.setBorder(Border.NO_BORDER);
+        cell11.setWidth(250);
+        cell11.setPadding(4);
+        cell11.setTextAlignment(TextAlignment.RIGHT);
+
+        cell11.add(new Paragraph("BASE de los pagos:").setFont(bold));
+        cell11.add(ls);
+        cell11.add(new Paragraph("Seguridad Social").setFont(font));
+        cell11.add(new Paragraph("Desempleo").setFont(font));
+        cell11.add(new Paragraph("Formación").setFont(font));
+        cell11.add(new Paragraph("Accidentes de trabajo").setFont(font));
+        cell11.add(new Paragraph("FOGASA").setFont(font));
+        cell11.add(ls);
+        cell11.add(new Paragraph("TOTAL PAGOS DEL EMPRESARIO:").setFont(bold));
+
+        Cell cell12 = new Cell();
+        cell12.setBorder(Border.NO_BORDER);
+        cell12.setWidth(250);
+        cell12.setPadding(4);
+        cell12.setTextAlignment(TextAlignment.LEFT);
+
+        cell12.add(new Paragraph(""+n.getBaseEmpresario()).setFont(bold));
+        cell12.add(lsL);
+        cell12.add(new Paragraph(n.getSeguridadSocialEmpresario()+"% : "+n.getImporteSeguridadSocialEmpresario()).setFont(font));
+        cell12.add(new Paragraph(n.getDesempleoEmpresario()+"% : "+n.getImporteDesempleoEmpresario()).setFont(font));
+        cell12.add(new Paragraph(n.getFormacionEmpresario()+"% : "+n.getImporteFormacionEmpresario()).setFont(font));
+        cell12.add(new Paragraph(n.getAccidentesTrabajoEmpresario()+"% : "+n.getImporteAccidentesTrabajoEmpresario()).setFont(font));
+        cell12.add(new Paragraph(n.getFogasaempresario()+"% : "+n.getImporteFogasaempresario()).setFont(font));
+        cell12.add(lsL);
+        Double sumEmp = n.getImporteSeguridadSocialEmpresario()+n.getImporteDesempleoEmpresario()+n.getImporteFormacionEmpresario()+n.getImporteAccidentesTrabajoEmpresario()+n.getImporteFogasaempresario();
+        cell12.add(new Paragraph(""+prec(sumEmp)).setFont(bold));
+
+        tabla8.addCell(cell11);
+        tabla8.addCell(cell12);
+
+        //TABLA 9
+        Table tabla9 = new Table(2);
+        tabla9.setWidth(500);
+        tabla9.setBorder(new SolidBorder(ColorConstants.RED,1));
+        tabla9.setFontColor(ColorConstants.RED);
+
+        Cell cell13 = new Cell();
+        cell13.setBorder(Border.NO_BORDER);
+        cell13.setWidth(250);
+        cell13.setPadding(4);
+        cell13.setTextAlignment(TextAlignment.RIGHT);
+        cell13.setFontSize(9f);
+
+        cell13.add(new Paragraph("Coste total del trabajador:").setFont(bold));
+
+        Cell cell14 = new Cell();
+        cell14.setBorder(Border.NO_BORDER);
+        cell14.setWidth(250);
+        cell14.setPadding(4);
+        cell14.setTextAlignment(TextAlignment.LEFT);
+        cell14.setFontSize(9f);
+
+        cell14.add(new Paragraph(""+n.getCosteTotalEmpresario()).setFont(bold));
+
+        tabla9.addCell(cell13);
+        tabla9.addCell(cell14);
 
         //FIN
         doc.add(tabla1);
@@ -224,13 +357,12 @@ public class NominasPDFGenerator {
         doc.add(tabla3);
         doc.add(tabla4);
         doc.add(tabla5);
+        doc.add(tabla6);
+        doc.add(tabla7);
+        doc.add(tabla8);
+        doc.add(tabla9);
 
         doc.close();
-
-//        SolidLine line = new SolidLine(1f);
-//        line.setColor(ColorConstants.RED);
-//        LineSeparator ls = new LineSeparator(line);
-//        ls.setMarginTop(5);
     }
 
     private static String getMonthName(int m){
@@ -250,5 +382,13 @@ public class NominasPDFGenerator {
         }
 
         return "";
+    }
+
+    private static Double prec(Double x){
+        Double newDouble = BigDecimal.valueOf(x)
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
+
+        return newDouble;
     }
 }
