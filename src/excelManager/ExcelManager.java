@@ -72,6 +72,10 @@ public class ExcelManager {
         dataCat = new ArrayList<>();
         dataNom = new ArrayList<>();
 
+        //EN ESTAS DOS LISTA, LA POS X COINCIDE CON EL DATO DEL TRABAJOR X EN EL ARRAY 'data'
+        ArrayList<String> listaProrrateos = new ArrayList<>();
+        ArrayList<Integer> listaPosExcel = new ArrayList<>();
+
         //LIST VALUES POSICIONES: 0 NOMBRE, 1 APELLIDO1, 2 APELLIDO2, 3 CIF_EMP
         //4 NOMBRE_EMP, 5 FECHAALTA_EMP, 6 CATEGORIA, 7 PRORRATA, 8 CCC, 9 PAIS CCC
         //10 IBAN, 11 EMAIL
@@ -137,6 +141,8 @@ public class ExcelManager {
                 //SI EL TRABAJADOR NO EXISTE LO AÑADIMOS A LA BASE DE DATOS (SI TIENE EL DNI EN BLANCO NO SE INSERTA)
                 if(!checkTrabajadorExists(key,listValues.get(0),listValues.get(5))) {
                     Trabajadorbbdd nuevo = getTrabajador(key,listValues);
+                    listaProrrateos.add(listValues.get(7));
+                    listaPosExcel.add(r+1);
                     data.add(nuevo);
                 }
             }
@@ -151,12 +157,17 @@ public class ExcelManager {
         }
 
         //GENERADOR DE NOMINAS
-        NominasGenerator.generarNominas(data,dataCat,dataNom,workbook);
+        NominasGenerator.generarNominas(data,dataCat,dataNom,listaProrrateos,workbook);
         NominasPDFGenerator.generarPDFs(dataNom);
 
+        //ALMACENAR/ACTUALIZAR LOS DATOS EN LA BD
+
+
         //CREACION DE DOCUMENTOS Y FIN
-        createErroresFile(doc,"dni");
-        createErroresFile(docCCC,"ccc");
+        //Document docNom = getNominasDoc(listaPosExcel,docBuilder);
+        createXMLFile(doc,"dni");
+        createXMLFile(docCCC,"ccc");
+        //createXMLFile(docNom,"nom");
         FileOutputStream out = new FileOutputStream(new File(".\\resources\\SistemasInformacionII_Actualizado.xlsx"));
         workbook.write(out);
         out.close();
@@ -174,7 +185,6 @@ public class ExcelManager {
         t.setApellido1(listValues.get(1));
         t.setApellido2(listValues.get(2));
         t.setFechaAlta(new SimpleDateFormat("dd/MM/yyyy").parse(listValues.get(5)));
-        t.setProrrateo(listValues.get(7));
         t.setCodigoCuenta(listValues.get(8));
         t.setIban(listValues.get(10));
         t.setEmail(listValues.get(11));
@@ -245,8 +255,6 @@ public class ExcelManager {
         return false;
     }
 
-
-
     public static boolean checkDNIExists(String key){
         key = key.substring(0,key.length()-1);
         
@@ -256,6 +264,18 @@ public class ExcelManager {
         }
         
         return false;
+    }
+
+    public static int getExcelRow(Trabajadorbbdd trab, ArrayList<Integer> rows){
+        //PARA ENCONTRAR AL TRABAJADOR BUSCAMOS UNO CON SU NOMBRE, DNI Y FECHA DE ALTA
+        for(int i=0; i<data.size(); i++){
+            Trabajadorbbdd iter = data.get(i);
+            if(iter.getNifnie().equals(trab.getNifnie()) && iter.getNombre().equals(trab.getNombre()) && iter.getFechaAlta().equals(trab.getFechaAlta())){
+                return rows.get(i);
+            }
+        }
+
+        return -1;
     }
     
     public static String generateEmail(List<String> listValues){
@@ -294,6 +314,78 @@ public class ExcelManager {
         }
         
         return apariciones;
+    }
+
+    public static Document getNominasDoc(ArrayList<Integer> rows, DocumentBuilder docBuilder){
+        Document doc = docBuilder.newDocument();
+        Element rootElement = doc.createElement("Nominas");
+        Attr attr1 = doc.createAttribute("fechaNomina");
+        attr1.setValue(dataNom.get(0).getMes()+"/"+dataNom.get(0).getAnio());
+        rootElement.setAttributeNode(attr1);
+        doc.appendChild(rootElement);
+
+        for(int i=0; i<dataNom.size(); i++){
+            Nomina n = dataNom.get(i);
+
+            Element elemento1 = doc.createElement("Nomina");
+            Attr attr = doc.createAttribute("idNomina");
+            attr.setValue(String.valueOf(n.getIdNomina()));
+            elemento1.setAttributeNode(attr);
+
+            Element elementoExtra = doc.createElement("Extra");
+            String extra = "N";
+            if(n.getBaseEmpresario()==0) extra = "S";
+            elementoExtra.setTextContent(extra);
+            elemento1.appendChild(elementoExtra);
+
+            Element elementoExcel = doc.createElement("idFilaExcel");
+            elementoExcel.setTextContent(String.valueOf(getExcelRow(n.getTrabajadorbbdd(),rows)));
+            elemento1.appendChild(elementoExcel);
+
+            Element elementoNom = doc.createElement("Nombre");
+            elementoNom.setTextContent(n.getTrabajadorbbdd().getNombre());
+            elemento1.appendChild(elementoNom);
+
+            Element elementoNIF = doc.createElement("NIF");
+            elementoNIF.setTextContent(n.getTrabajadorbbdd().getNifnie());
+            elemento1.appendChild(elementoNIF);
+
+            Element elementoIBAN = doc.createElement("IBAN");
+            elementoIBAN.setTextContent(n.getTrabajadorbbdd().getIban());
+            elemento1.appendChild(elementoIBAN);
+
+            Element elementoCat = doc.createElement("Categoria");
+            elementoCat.setTextContent(n.getTrabajadorbbdd().getCategorias().getNombreCategoria());
+            elemento1.appendChild(elementoCat);
+
+            Element elementoBA = doc.createElement("BrutoAnual");
+            elementoBA.setTextContent(String.valueOf(n.getBrutoAnual()));
+            elemento1.appendChild(elementoBA);
+
+            Element elementoIRPF = doc.createElement("ImporteIrpf");
+            elementoIRPF.setTextContent(String.valueOf(n.getImporteIrpf()));
+            elemento1.appendChild(elementoIRPF);
+
+            Element elementoBEmp = doc.createElement("BaseEmpresario");
+            elementoBEmp.setTextContent(String.valueOf(n.getBaseEmpresario()));
+            elemento1.appendChild(elementoBEmp);
+
+            Element elementoBN = doc.createElement("BrutoNomina");
+            elementoBN.setTextContent(String.valueOf(n.getBrutoNomina()));
+            elemento1.appendChild(elementoBN);
+
+            Element elementoLN = doc.createElement("LiquidoNomina");
+            elementoLN.setTextContent(String.valueOf(n.getLiquidoNomina()));
+            elemento1.appendChild(elementoLN);
+
+            Element elementoCTEmp = doc.createElement("CosteTotalEmpresario");
+            elementoCTEmp.setTextContent(String.valueOf(n.getCosteTotalEmpresario()));
+            elemento1.appendChild(elementoCTEmp);
+
+            rootElement.appendChild(elemento1);
+        }
+
+        return doc;
     }
     
     
@@ -471,10 +563,11 @@ public class ExcelManager {
         return false;
     }
     
-    public static void createErroresFile(Document doc, String type) throws TransformerException, ParserConfigurationException{
+    public static void createXMLFile(Document doc, String type) throws TransformerException, ParserConfigurationException{
       String filepath="";
       if(type=="dni") filepath = ".\\resources\\Errores.xml";
       if(type=="ccc") filepath = ".\\resources\\ErroresCCC.xml";
+      if(type=="nom") filepath = ".\\resources\\Nominas.xml";
       TransformerFactory transformerFactory = TransformerFactory.newInstance();
       Transformer transformer = transformerFactory.newTransformer();
       transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");

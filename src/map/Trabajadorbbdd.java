@@ -23,7 +23,6 @@ public class Trabajadorbbdd  implements java.io.Serializable {
      private Date fechaAlta;
      private String codigoCuenta;
      private String iban;
-     private String prorrateo;
      private Set nominas = new HashSet(0);
 
     public Trabajadorbbdd() {
@@ -129,13 +128,6 @@ public class Trabajadorbbdd  implements java.io.Serializable {
     
     public void setIban(String iban) {
         this.iban = iban;
-    }
-    public String getProrrateo() {
-        return this.prorrateo;
-    }
-
-    public void setProrrateo(String prorrateo) {
-        this.prorrateo = prorrateo;
     }
     public Set getNominas() {
         return this.nominas;

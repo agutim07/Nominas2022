@@ -15,7 +15,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 
 public class NominasGenerator {
-    public static void generarNominas(List<Trabajadorbbdd> data, List<Categorias> listaCategorias, List<Nomina> listaNominas, XSSFWorkbook workbook) throws ParseException, IOException {
+    public static void generarNominas(List<Trabajadorbbdd> data, List<Categorias> listaCategorias, List<Nomina> listaNominas, ArrayList<String> listaPro, XSSFWorkbook workbook) throws ParseException, IOException {
         //CONSEGUIMOS LOS DATOS DE LAS HOJAS 1-4
         getHoja3(listaCategorias,workbook); //la hoja 1 se  guarda en listaCategorias
         ArrayList<BrutoRetenciones> listaRetenciones = getHoja4(workbook);
@@ -53,7 +53,7 @@ public class NominasGenerator {
                 int trienio = (añoCalculo-Integer.parseInt(dateAltaString.substring(6)))/3;
                 int mesCalculo = Integer.valueOf(mainDateString.substring(3,5));
 
-                String pro = iter.getProrrateo(); boolean prorrateo=false;
+                String pro = listaPro.get(i); boolean prorrateo=false;
                 if(pro.equals("SI")) prorrateo=true;
 
                 String categoria = iter.getCategorias().getNombreCategoria();
